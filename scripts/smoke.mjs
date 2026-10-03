@@ -1,0 +1,54 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {spawnSync} from 'node:child_process';
+import {getDb,REPO_ROOT} from './lib/db.mjs';
+import {migrate} from './migrate.mjs';
+import {run,READS,TABLES} from './grooming.mjs';
+import {parseCsv} from './lib/csv.mjs';
+const scratch=fs.mkdtempSync(path.join(os.tmpdir(),'grooming-test-'));
+process.env.DATABASE_URL=process.env.TEST_DATABASE_URL||'';process.env.DATA_DIR=path.join(scratch,'db');process.env.OUTPUT_DIR=path.join(scratch,'output');
+let db,count=0;const ok=s=>{count++;console.log(`ok ${count}: ${s}`);};
+const go=(...a)=>run(db,a),id=n=>`00000000-0000-4000-8000-${String(n).padStart(12,'0')}`,day=n=>new Date(Date.now()+n*86400000).toISOString().slice(0,10);
+function script(name,args=[],expected=0){const r=spawnSync(process.execPath,[path.join(REPO_ROOT,'scripts',name),...args],{cwd:REPO_ROOT,env:process.env,encoding:'utf8'});assert.equal(r.status,expected,r.stderr+'\n'+r.stdout);return r.stdout;}
+try{
+ db=await getDb();await migrate(db);assert.equal((await migrate(db)).ran.length,0);ok('migrations are repeatable');
+ const seed=fs.readFileSync(path.join(REPO_ROOT,'supabase/seed.sql'),'utf8');await db.exec(seed);await db.exec(seed);assert.equal((await go('pets')).length,4);assert.equal((await go('appointments')).length,5);ok('seed is idempotent');
+ for(const cmd of Object.keys(READS)){assert.ok(Array.isArray(await go(cmd)));ok(`read ${cmd}`);}
+ assert.equal((await go('day-sheet',`--date=${day(1)}`)).length,2);assert.equal((await go('van-run',`--date=${day(1)}`)).length,2);await assert.rejects(go('day-sheet','--date=2026-02-30'));ok('dated day and van sheets');
+ const attention=await go('attention');for(const reason of ['Rebooking overdue','Completed appointment has unpaid balance','Appointment has not been closed','Incident still open'])assert.ok(attention.some(r=>r.reason===reason));ok('overdue and stale rows surface');
+ await assert.rejects(go('pet','mIlO'),/Ambiguous/);assert.equal((await go('pet','pOpPy')).pet.name,'Poppy');assert.equal((await go('pet',id(11))).pet.name,'Milo');assert.equal((await go('client','aRoHa WiLsOn')).pets.length,1);await assert.rejects(go('pet','missing'),/No matching/);ok('names, prefixes and ambiguity');
+ const answers=await go('questions');assert.equal(answers.length,10);for(let i=1;i<=10;i++){assert.equal((await go('questions',`--question=${i}`))[0].number,i);assert.ok(answers[i-1].answers.length,`demo question ${i} has an answer`);}await assert.rejects(go('questions','--question=11'));ok('ten demonstrated cross-record questions');
+ const care=await go('compliance');assert.ok(care.some(r=>r.rule==='NZ-TH4'));assert.ok(care.some(r=>r.rule==='NZ-TH5'));assert.ok(care.some(r=>r.rule==='HOUSE-VACCINE'));ok('cited checks and house rules are separate');
+ await go('consent','Luca Chen','--reference=Signed-demo-consent','--emergency-contact=Demo Vet');assert.ok(!(await go('compliance')).some(r=>r.record_id===id(12)&&r.rule==='NZ-TH4'));ok('consent reference resolves the consent flag');
+ const[c]=await go('add','client','--name=Test Owner','--suburb=Test Suburb');
+ const[p]=await go('add','pet','--name=Test Pet',`--client=${c.id}`,'--rebook-days=35');
+ const[s]=await go('add','staff','--name=Test Groomer');const[r]=await go('add','resource','--name=Test Van','--kind=van');const[v]=await go('add','service','--name=Test Service','--minutes=60','--cents=12500','--currency=AUD');
+ await assert.rejects(go('add','pet','--name=Bad',`--client=${c.id}`,'--rebook-days=0'));await assert.rejects(go('add','service','--name=Bad','--minutes=10','--cents=1.2','--currency=AUD'));ok('all add types and value guards');
+ const at=`${day(3)}T09:00:00Z`,book=['book',`--pet=${p.id}`,`--staff=${s.id}`,`--resource=${r.id}`,`--service=${v.id}`,`--at=${at}`];
+ const[a]=await go(...book);assert.equal(a.price_cents,12500);assert.equal(a.currency,'AUD');await assert.rejects(go(...book),/overlaps/);await assert.rejects(go(...book.slice(0,-1),'--at=2026-02-30T09:00:00Z'));await assert.rejects(go(...book.slice(0,-1),`--at=${day(3)}T09:00:00`));ok('book snapshots price and rejects overlaps and invalid times');
+ await assert.rejects(go('status',a.id,'--to=checked-in'),/before/);await assert.rejects(go('complete',a.id,'--notes=Done'),/checked-in/);await assert.rejects(go('receive',a.id,'--cents=1','--reference=before'),/completed/);ok('future check-in and premature completion or payment rejected');
+ await db.query("UPDATE appointments SET starts_at=now()-interval '2 hours',ends_at=now()-interval '1 hour' WHERE id=$1",[a.id]);
+ await go('status',a.id,'--to=checked-in');await assert.rejects(go('complete',a.id,'--notes=Done'),/observations/);
+ for(const kind of ['admission','welfare','handover'])await go('log',a.id,`--kind=${kind}`,'--observations=Demo observation supplied by operator','--by=Test Groomer');
+ await go('wait',`--pet=${p.id}`,`--date=${day(2)}`);await go('complete',a.id,'--notes=Groom completed and handed to owner');assert.equal((await go('pet',p.id)).pet.last_groom,day(0));assert.ok((await go('waitlist')).filter(w=>w.pet==='Test Pet').every(w=>w.status==='closed'));await assert.rejects(go('complete',a.id,'--notes=again'));ok('care records, completion, cycle and waitlist');
+ await go('receive',a.id,'--cents=12500','--reference=TEST-PAID');await assert.rejects(go('receive',a.id,'--cents=1','--reference=TOO-MUCH'),/exceeds/);await assert.rejects(go('receive',id(51),'--cents=100','--reference=TEST-PAID'),/unique/);assert.equal((await go('balances')).find(b=>b.id===id(51)).balance_cents,4500);ok('exact payment, overpayment and duplicate receipt guards');
+ assert.equal((await go('revenue')).length,2);ok('currency totals remain separate');
+ const[next]=await go(...book);await go('status',next.id,'--to=cancelled');await assert.rejects(go('status',next.id,'--to=checked-in'));const[missed]=await go(...book);await go('status',missed.id,'--to=no-show');ok('cancel and no-show release capacity without reopening history');
+ await go('vaccinate',`--pet=${p.id}`,'--name=Vet record',`--expires=${day(90)}`,'--evidence=Test-file');await assert.rejects(go('vaccinate',`--pet=${p.id}`,'--name=Bad','--expires=2026-02-30','--evidence=Test'));ok('vaccination evidence and valid calendar dates');
+ const[i]=await go('incident',`--pet=${p.id}`,'--summary=Test incident','--urgent');await go('resolve',i.id,'--action=Owner and vet contacted, instructions recorded');assert.ok(!(await go('compliance')).some(r=>r.record_id===i.id));ok('incident response closes review');
+ const[w]=await go('wait',`--pet=${p.id}`,`--date=${day(1)}`);await go('close-wait',w.id);ok('waitlist closure');
+ const source=path.join(REPO_ROOT,'examples/moego-clients-pets.csv'),before=(await go('pets')).length;
+ assert.equal((await go('import','moego',`--file=${source}`,'--dry-run'))[0].pets,2);assert.equal((await go('pets')).length,before);await go('import','moego',`--file=${source}`);const scout=(await go('pet','Scout')).pet;await db.query("UPDATE pets SET care_notes='Locally checked',rebook_days=28 WHERE id=$1",[scout.id]);await go('import','moego',`--file=${source}`);assert.equal((await go('pets')).length,before+2);assert.equal((await go('pet','Scout')).pet.care_notes,'Locally checked');assert.equal((await go('pet','Scout')).pet.rebook_days,28);assert.equal((await go('pet','Scout')).pet.last_groom,null);ok('dry run, idempotent import and local care preservation');
+ const bad=path.join(scratch,'bad.csv');fs.writeFileSync(bad,'Client ID,Client Name,Pet ID,Pet Name\nX,A,X1,Test\nY,B,,Missing\n');await assert.rejects(go('import','moego',`--file=${bad}`),/missing/);assert.equal((await go('pets')).length,before+2);fs.writeFileSync(bad,'Client ID,Client Name,Pet ID,Pet Name\nX,A,P100,Scout\n');await assert.rejects(go('import','moego',`--file=${bad}`),/belongs/);ok('invalid rows and ownership changes write nothing');
+ fs.writeFileSync(bad,'OwnerKey,Owner,AnimalKey,Animal\nX,Map Test,X1,Map Pet\n');const mapping=path.join(scratch,'map.json');fs.writeFileSync(mapping,JSON.stringify({client_id:'OwnerKey',client_name:'Owner',pet_id:'AnimalKey',pet_name:'Animal'}));await go('import','moego',`--file=${bad}`,`--map=${mapping}`);assert.equal((await go('pet','Map Pet')).client.name,'Map Test');ok('explicit vendor-column mapping');
+ assert.equal(parseCsv('\ufeffA,B\r\n1,"two, three\nfour"\r\n')[0].B,'two, three\nfour');assert.throws(()=>parseCsv('A,A\n1,2'));assert.throws(()=>parseCsv('A,B\n1,"broken'));ok('CSV BOM, quotes, multiline and malformed input');
+ const out=path.join(scratch,'snapshot.json');await go('export',`--out=${out}`);const snapshot=JSON.parse(fs.readFileSync(out,'utf8'));for(const t of TABLES)assert.ok(Array.isArray(snapshot[t]));await assert.rejects(go('export',`--out=${out}`),/EEXIST/);ok('consistent full export refuses overwrites');
+ const[draft]=await go('draft-rebooking');assert.equal(draft.sent,false);assert.match(fs.readFileSync(draft.file,'utf8'),/Nothing has been sent/);ok('rebooking drafts stay in private files');
+ await assert.rejects(go('unknown'),/Unknown command/);ok('unknown commands fail');
+ await db.close();db=null;
+ assert.ok(JSON.parse(script('grooming.mjs',['pets','--json'])).length>=6);assert.match(script('grooming.mjs',['pet','Milo'],1),/^$/);assert.match(script('grooming.mjs',['--help']),/import moego/);ok('actual CLI JSON, ambiguity exit and help');
+ script('view.mjs');script('docs.mjs');assert.match(fs.readFileSync(path.join(process.env.OUTPUT_DIR,'views','week.html'),'utf8'),/Harbour Paws/);for(const type of ['groom-card','client-statement','incident-report'])assert.ok(fs.readdirSync(path.join(process.env.OUTPUT_DIR,'docs-out',type)).length>0);ok('branded documents and read-only views render');
+ console.log(`PASS: ${count} checks, ${Object.keys(READS).length} reads, 10 questions, ${fs.readdirSync(path.join(REPO_ROOT,'.claude/commands')).filter(n=>n.endsWith('.md')&&n!=='README.md').length} agent commands.`);
+}finally{if(db)await db.close();fs.rmSync(scratch,{recursive:true,force:true});}

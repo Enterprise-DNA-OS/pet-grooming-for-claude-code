@@ -1,115 +1,126 @@
-<h1 align="center">Pet Grooming for Claude Code</h1>
+# Pet Grooming for Claude Code
 
-<p align="center">
-  <strong>The open-source pet grooming salon and mobile grooming system that is just a database and Claude Code.</strong>
-</p>
+Clients, pets, grooming appointments, van runs, rebooking and care records in a database you own. Built by Enterprise DNA. Works with Claude Code, Codex, OpenCode or Cursor.
 
-<p align="center">
-  Created by <a href="https://www.enterprisedna.co"><strong>Enterprise DNA</strong></a>. Free and open source. Works with Claude Code, Codex, OpenCode or Cursor.
-</p>
-
-<!-- three-doors -->
-<table align="center">
-  <tr>
-    <td align="center"><strong>Do it yourself</strong><br/>Clone it, run it, own it. Free, MIT.<br/><a href="#quick-start">Quick start</a></td>
-    <td align="center"><strong>We customise it</strong><br/>Your fields, your rules, your MoeGo data brought across.<br/><a href="https://enterprisedna.co/omni/book/?utm_source=github&utm_medium=readme&utm_campaign=moego">Book a call</a></td>
-    <td align="center"><strong>We run it for you</strong><br/>Installed, connected and operated inside Omni. Setup fee, then a retainer.<br/><a href="https://enterprisedna.co/omni/instead-of/moego?utm_source=github&utm_medium=readme&utm_campaign=moego">How it works</a></td>
-  </tr>
-</table>
-
-<p align="center">
-  <a href="#what-is-this">What is this</a> &bull;
-  <a href="#why-no-front-end">Why no front end</a> &bull;
-  <a href="#quick-start">Quick start</a> &bull;
-  <a href="#the-commands">Commands</a> &bull;
-  <a href="#instead-of-moego">Instead of MoeGo</a> &bull;
-  <a href="#want-it-installed-and-run-for-you">Installed for you</a> &bull;
-  <a href="#license">License</a>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Node-20+-339933?style=flat-square" alt="Node 20+" />
-  <img src="https://img.shields.io/badge/PostgreSQL-any-336791?style=flat-square" alt="PostgreSQL" />
-  <img src="https://img.shields.io/badge/PGlite-embedded-3ecf8e?style=flat-square" alt="PGlite" />
-  <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="MIT License" />
-</p>
-
----
-
-## What is this
-
-Pet Grooming for Claude Code does the job you pay MoeGo for, as a Postgres database and a set of agent commands. There is no web front end. You open the folder in [Claude Code](https://claude.com/claude-code) (or Codex, OpenCode, Cursor: see `AGENTS.md`) and ask for what you want in plain language. It runs the right query, and it can answer questions the MoeGo dashboard cannot.
-
-<!-- TODO(author): the annual bill. One sentence: what a 10 to 50 person business typically pays MoeGo per year, all in, with a source. -->
-
-Want the same thing with a web front end, or built on a different stack? That is a customisation, and it is exactly what Enterprise DNA does: [book a call](https://enterprisedna.co/omni/book/?utm_source=github&utm_medium=readme&utm_campaign=moego).
-
-<!-- TODO(author): two or three sentences on what this specific product covers and who it is for. -->
-
-## Why no front end
-
-- The front end was only ever there because the database was hard to talk to. That is no longer true.
-- Your data sits in plain Postgres tables you own. Any tool can read them. No export, no lock-in.
-- No seats, no tiers, no add-ons. Read [docs/why-no-front-end.md](docs/why-no-front-end.md) for the honest trade-offs too.
+| Do it yourself | We customise it | We run it for you |
+|---|---|---|
+| Free under MIT. Follow the quick start. | Your fields, rules, MoeGo mapping, booking experience and optional mobile interface. [Book a call](https://enterprisedna.co/omni/book?offer=replace-software&utm_medium=readme&utm_campaign=moego). | Installed, connected and operated through **Omni by Enterprise DNA**. One setup fee, then a retainer. [See the offer](https://enterprisedna.co/omni/instead-of/moego). |
 
 ## Quick start
 
-Sixty seconds, no database install (an embedded Postgres runs inside Node):
+Node 20 or later on Windows or Linux. No database installation is needed for the demo.
 
 ```bash
 git clone https://github.com/Enterprise-DNA-OS/pet-grooming-for-claude-code.git
 cd pet-grooming-for-claude-code
 npm install
+npm test
 npm run demo
+npm run view
+npm run docs
 ```
 
-Then open the folder in Claude Code and type a slash command. <!-- TODO(author): name the first command to try. -->
+Open the folder in your coding agent and ask for /weekly-review. The fictional demo contains overdue pets, a partly paid groom, a missed appointment, an open care incident and missing vaccination and consent evidence. Dates move with the day the seed first runs. Seed is repeatable without replacing existing records. The two Milos demonstrate why ambiguous names must be checked.
 
-### Use it with your own Postgres or Supabase
+## The five weekly rituals
 
-Copy `.env.example` to `.env`, set `DATABASE_URL`, then `npm run migrate`. Same commands, shared data, no per-seat fee.
+1. The day sheet: visits, staff, services, handling notes and contact details.
+2. The van run: appointments in time order with addresses and suburbs.
+3. Rebooking: overdue pets, their grooming cycle and the waiting list.
+4. Balances: completed work, recorded receipts and unpaid amounts by currency.
+5. Care review: admission observations, handovers, consent references and open incidents.
 
-## The commands
+The CLI also books appointments with overlap checks, records care, completes grooms, records payments made elsewhere, writes drafts and imports the client and pet list. It does not process payments. One resource represents one van or one salon grooming station. Model multiple salon stations as separate resources. Staffing, travel buffers, routes and local opening hours need the operator's review. Times are UTC with explicit timezone required when booking.
 
-<!-- TODO(author): a table of the slash commands in .claude/commands and what each one does. -->
+## Commands
 
-| Command | What it does |
-|---|---|
-| `/...` | ... |
+- `/clients`: Run `node scripts/grooming.mjs clients --json`.
+- `/pets`: Run `node scripts/grooming.mjs pets --json`.
+- `/staff`: Run `node scripts/grooming.mjs staff --json`.
+- `/resources`: Run `node scripts/grooming.mjs resources --json`.
+- `/services`: Run `node scripts/grooming.mjs services --json`.
+- `/day-sheet`: Run `node scripts/grooming.mjs day-sheet --json` with `--date=YYYY-MM-DD` for the requested UTC day.
+- `/van-run`: Run `node scripts/grooming.mjs van-run --json` with `--date=YYYY-MM-DD` for the requested UTC day.
+- `/appointments`: Run `node scripts/grooming.mjs appointments --json`.
+- `/rebooking`: Run `node scripts/grooming.mjs rebooking --json`.
+- `/balances`: Run `node scripts/grooming.mjs balances --json`.
+- `/vaccinations`: Run `node scripts/grooming.mjs vaccinations --json`.
+- `/waitlist`: Run `node scripts/grooming.mjs waitlist --json`.
+- `/incidents`: Run `node scripts/grooming.mjs incidents --json`.
+- `/care-checks`: Run `node scripts/grooming.mjs care-checks --json`.
+- `/compliance`: Run `node scripts/grooming.mjs compliance --json`.
+- `/attention`: Run `node scripts/grooming.mjs attention --json`.
+- `/revenue`: Run `node scripts/grooming.mjs revenue --json`.
+- `/pet`: Pet.
+- `/client`: Client.
+- `/questions`: Questions.
+- `/add`: Add.
+- `/book`: Book.
+- `/status`: Status.
+- `/complete`: Complete.
+- `/log`: Log.
+- `/receive`: Receive.
+- `/vaccinate`: Vaccinate.
+- `/incident`: Incident.
+- `/resolve`: Resolve.
+- `/wait`: Wait.
+- `/close-wait`: Close wait.
+- `/consent`: Consent.
+- `/import`: Import.
+- `/export`: Export.
+- `/draft-rebooking`: Draft rebooking.
+- `/weekly-review`: Weekly review.
+- `/customise`: Customise.
+- `/new-view`: New view.
 
-## Instead of moego
+The recipes live in .claude/commands. Run node scripts/grooming.mjs --help for arguments. Reads default to aligned text and accept --json. Full names match without case. ID prefixes are supported and ambiguous matches list all candidates and exit 1.
 
-<!-- TODO(author): how to bring data across from MoeGo; link docs/replace-moego.md -->
+## Ten questions across your records
 
-## Architecture
+These queries combine your records beyond a single day sheet. They are demonstrated here, not an unsupported claim that MoeGo has no equivalent report. Run node scripts/grooming.mjs questions --question=N.
 
-```
-pet-grooming-for-claude-code/
-  CLAUDE.md                 how the operator wants this run (routing table + house rules)
-  AGENTS.md                 the same, for Codex / OpenCode / Cursor / Gemini CLI
-  .claude/commands/         the slash commands
-  scripts/                  the CLI the commands drive
-  scripts/lib/db.mjs        one adapter: DATABASE_URL (pg) or embedded PGlite
-  supabase/migrations/      plain SQL schema
-  supabase/seed.sql         demo data
-  docs/                     the thesis and the migration guide
-```
+1. Which overdue pets also have an unresolved care incident?
+2. Which upcoming appointments lack an emergency veterinary consent reference?
+3. Which overdue pets have both an unpaid groom and a waiting-list request?
+4. How many booked minutes does each groomer have in the next seven days?
+5. Which van visits need special handling, grouped by suburb?
+6. Which pets are due back but have expired vaccination evidence?
+7. Which completed grooms have no recorded handover?
+8. Which clients need emergency contact details before their next visit?
+9. Which waiting pets share a suburb with a booked van visit?
+10. How much remains unpaid from completed work, separated by currency?
 
-## Built for coding agents
+## Your first hour: ten things to ask for
 
-The database, CLI and command recipes work with Claude Code, Codex, OpenCode or Cursor. Ask your coding agent for a new command and have it implement and test the change against the same records.
+1. Show the attention list and explain each item.
+2. Which pets need rebooking this week?
+3. Show tomorrow's van visits with handling notes.
+4. Read Poppy's owner and care history.
+5. Record the admission observation I supply.
+6. List completed grooms with unpaid balances.
+7. Draft a rebooking note, without sending it.
+8. Render the groom card and owner statement.
+9. Test our MoeGo client and pet export and explain every missing mapping.
+10. Add a preferred appointment window and show it on the rebooking view through /customise.
 
-## Contributing
+## Import and ownership
 
-Issues and pull requests are welcome. Keep the shape: plain SQL, a small CLI, a slash command per recurring job, no front end.
+[The switching guide](docs/replace-moego.md) covers MoeGo's export path, supported CSV headings, optional column mapping, validation and reconciliation. A dry run checks the whole file. Identity imports repeat by stable IDs and preserve local care, consent and cycles. History, payment balances and signed forms require separate mapping. The vendor's public help does not specify fixed CSV columns, so compatibility with a real export must be checked before cutover.
 
-## Want it installed and run for you?
+Use a fresh DATA_DIR and run npm run migrate without seed for your business. DATABASE_URL selects your shared Postgres database. Otherwise PGlite stores data locally. Production needs configured access controls, backups and private document storage. Do not share the local database directory between running processes.
 
-Enterprise DNA installs Pet Grooming for Claude Code for your business, migrates your MoeGo data, connects it to the rest of your tools, and runs it for you as part of **Omni**, our managed Command Center. One setup fee, then a monthly retainer.
+Export all eleven record types with node scripts/grooming.mjs export --out=private-snapshot.json. The destination must be new. This exchange snapshot is not an automatic restore. Keep native database backups and original documents too.
 
-- Book a call: [enterprisedna.co/omni/book](https://enterprisedna.co/omni/book/?offer=replace-software&utm_source=github&utm_medium=readme&utm_campaign=moego)
-- Read more: [enterprisedna.co/omni/instead-of/moego](https://enterprisedna.co/omni/instead-of/moego?utm_source=github&utm_medium=readme&utm_campaign=moego)
+## Documents, views and care checks
 
-## License
+Set your business name, logo path and colours in brand.json. npm run docs renders groom and handover cards, client statements and incident reports. They are working records, not tax invoices. npm run view renders the week, rebooking, money and care dashboards. Open the HTML locally and print it if needed. Nothing is hosted or sent.
 
-MIT. Copyright (c) 2026 Enterprise DNA.
+[Compliance notes](docs/compliance.md) separate New Zealand source-based record checks from house rules. The base is not a veterinary or boarding system, does not establish clinical vaccination schedules, and does not certify compliance. [Why no front end](docs/why-no-front-end.md) explains the mobile, booking and route work to scope for your version.
+
+## Validation
+
+npm test uses temporary data and output folders. It exercises every CLI command, migration and seed repeatability, ambiguous names, bookings, care transitions, payment guards, import rollback and mapping, currency separation, exports, drafts and HTML output. GitHub Actions runs Linux and Windows PGlite tests and a separate Postgres 17 job. See docs/validation.md for observed results.
+
+## Licence
+
+MIT. Copyright 2026 Enterprise DNA. MoeGo is named for compatibility and comparison. No affiliation or endorsement is implied.

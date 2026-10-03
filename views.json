@@ -1,13 +1,53 @@
 [
   {
     "name": "week",
-    "title": "This week",
-    "subtitle": "Pet Grooming for Claude Code: what needs attention, rendered by npm run view",
+    "title": "The grooming week",
+    "subtitle": "Private read-only working record. Times are UTC.",
     "sections": [
       {
+        "title": "Upcoming appointments",
+        "sql": "SELECT * FROM v_schedule WHERE starts_at>=current_date AND starts_at<current_date+7 ORDER BY starts_at"
+      },
+      {
         "title": "Needs attention",
-        "note": "TODO(author): point this at the industry's attention view (overdue, stuck, quiet).",
-        "sql": "select 'replace me' as item, 'TODO(author)' as why"
+        "sql": "SELECT * FROM v_attention ORDER BY due_on"
+      }
+    ]
+  },
+  {
+    "name": "rebooking",
+    "title": "Rebooking and van planning",
+    "subtitle": "Private read-only working record. Times are UTC.",
+    "sections": [
+      {
+        "title": "Due back",
+        "sql": "SELECT * FROM v_rebooking ORDER BY due_on"
+      },
+      {
+        "title": "Waiting pets",
+        "sql": "SELECT p.name AS pet,c.name AS client,c.suburb,w.wanted_on,w.notes FROM waitlist w JOIN pets p ON p.id=w.pet_id JOIN clients c ON c.id=p.client_id WHERE w.status='open'"
+      }
+    ]
+  },
+  {
+    "name": "money",
+    "title": "Grooming balances",
+    "subtitle": "Private read-only working record. Times are UTC.",
+    "sections": [
+      {
+        "title": "Unpaid appointments",
+        "sql": "SELECT * FROM v_balances WHERE balance_cents>0 ORDER BY starts_at"
+      }
+    ]
+  },
+  {
+    "name": "care",
+    "title": "Care records to review",
+    "subtitle": "Private read-only working record. Times are UTC.",
+    "sections": [
+      {
+        "title": "Checks",
+        "sql": "SELECT * FROM v_compliance ORDER BY rule,pet"
       }
     ]
   }

@@ -1,11 +1,43 @@
 [
   {
-    "name": "example",
-    "title": "TODO(author): the first document this industry must produce",
-    "for_each": "select gen_random_uuid() as id, 'Example' as name",
+    "name": "groom-card",
+    "title": "Groom and handover record",
+    "for_each": "SELECT a.id,p.name FROM appointments a JOIN pets p ON p.id=a.pet_id WHERE a.status NOT IN ('cancelled','no-show')",
     "file": "name",
     "sections": [
-      { "title": "Details", "sql": "select 'replace me' as item, $1::text as record_id" }
+      {
+        "title": "Appointment",
+        "sql": "SELECT * FROM v_schedule WHERE id=$1"
+      },
+      {
+        "title": "Observed care",
+        "sql": "SELECT kind,observations,recorded_by,checked_at FROM care_checks WHERE appointment_id=$1 ORDER BY checked_at"
+      }
+    ]
+  },
+  {
+    "name": "client-statement",
+    "title": "Client balance statement",
+    "for_each": "SELECT id,name FROM clients",
+    "file": "name",
+    "sections": [
+      {
+        "title": "Grooming charges and recorded receipts",
+        "note": "Working statement, not a tax invoice. Payments were made elsewhere.",
+        "sql": "SELECT b.* FROM v_balances b JOIN appointments a ON a.id=b.id JOIN pets p ON p.id=a.pet_id WHERE p.client_id=$1 ORDER BY b.starts_at"
+      }
+    ]
+  },
+  {
+    "name": "incident-report",
+    "title": "Animal care incident report",
+    "for_each": "SELECT id,summary FROM incidents",
+    "file": "id",
+    "sections": [
+      {
+        "title": "Recorded incident and response",
+        "sql": "SELECT p.name AS pet,i.summary,i.urgent,i.action,i.created_at,i.resolved_at FROM incidents i JOIN pets p ON p.id=i.pet_id WHERE i.id=$1"
+      }
     ]
   }
 ]
