@@ -7,7 +7,19 @@
     "sections": [
       {
         "title": "Appointment",
-        "sql": "SELECT * FROM v_schedule WHERE id=$1"
+        "sql": "SELECT * FROM v_schedule WHERE id=$1",
+        "columns": [
+          "starts_at",
+          "pet",
+          "groomer",
+          "resource",
+          "service",
+          "status"
+        ]
+      },
+      {
+        "title": "Contact and handling",
+        "sql": "SELECT client,phone,address,temperament,care_notes FROM v_schedule WHERE id=$1"
       },
       {
         "title": "Observed care",
@@ -24,7 +36,14 @@
       {
         "title": "Grooming charges and recorded receipts",
         "note": "Working statement, not a tax invoice. Payments were made elsewhere.",
-        "sql": "SELECT b.* FROM v_balances b JOIN appointments a ON a.id=b.id JOIN pets p ON p.id=a.pet_id WHERE p.client_id=$1 ORDER BY b.starts_at"
+        "sql": "SELECT b.* FROM v_balances b JOIN appointments a ON a.id=b.id JOIN pets p ON p.id=a.pet_id WHERE p.client_id=$1 ORDER BY b.starts_at",
+        "columns": [
+          "pet",
+          "starts_at",
+          "price_cents",
+          "paid_cents",
+          "balance_cents"
+        ]
       }
     ]
   },

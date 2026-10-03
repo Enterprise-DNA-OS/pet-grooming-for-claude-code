@@ -6,11 +6,24 @@
     "sections": [
       {
         "title": "Upcoming appointments",
-        "sql": "SELECT * FROM v_schedule WHERE starts_at>=current_date AND starts_at<current_date+7 ORDER BY starts_at"
+        "sql": "SELECT * FROM v_schedule WHERE starts_at>=current_date AND starts_at<current_date+7 ORDER BY starts_at",
+        "columns": [
+          "starts_at",
+          "pet",
+          "groomer",
+          "resource",
+          "service",
+          "status"
+        ]
       },
       {
         "title": "Needs attention",
-        "sql": "SELECT * FROM v_attention ORDER BY due_on"
+        "sql": "SELECT * FROM v_attention ORDER BY due_on",
+        "columns": [
+          "pet",
+          "reason",
+          "due_on"
+        ]
       }
     ]
   },
@@ -21,7 +34,15 @@
     "sections": [
       {
         "title": "Due back",
-        "sql": "SELECT * FROM v_rebooking ORDER BY due_on"
+        "sql": "SELECT * FROM v_rebooking ORDER BY due_on",
+        "columns": [
+          "pet",
+          "client",
+          "suburb",
+          "due_on",
+          "days_overdue",
+          "temperament"
+        ]
       },
       {
         "title": "Waiting pets",
@@ -36,7 +57,15 @@
     "sections": [
       {
         "title": "Unpaid appointments",
-        "sql": "SELECT * FROM v_balances WHERE balance_cents>0 ORDER BY starts_at"
+        "sql": "SELECT * FROM v_balances WHERE balance_cents>0 ORDER BY starts_at",
+        "columns": [
+          "pet",
+          "client",
+          "starts_at",
+          "price_cents",
+          "paid_cents",
+          "balance_cents"
+        ]
       }
     ]
   },
@@ -47,7 +76,13 @@
     "sections": [
       {
         "title": "Checks",
-        "sql": "SELECT * FROM v_compliance ORDER BY rule,pet"
+        "sql": "SELECT * FROM v_compliance ORDER BY rule,pet",
+        "columns": [
+          "pet",
+          "rule",
+          "issue"
+        ],
+        "note": "Sources and house-policy distinctions are in docs/compliance.md. Flags identify records to review."
       }
     ]
   }
